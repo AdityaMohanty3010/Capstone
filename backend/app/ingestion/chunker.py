@@ -1,50 +1,94 @@
-def chunk_text(
-    text: str,
+import re
+
+
+def split_into_articles(text: str) -> list[dict]:
+    """
+    Split a cleaned knowledge-base document into individual articles.
+
+    Expected article format:
+        KB-001 — Article title
+    """
+
+    pattern = r"(?m)^(KB-\d+)\s+[—-]\s+(.+)$"
+
+    matches = list(re.finditer(pattern, text))
+
+    if not matches:
+        return [
+            {
+                "article_id": "UNKNOWN",
+                "title": "Unknown",
+                "text": text.strip(),
+            }
+        ]
+
+    articles = []
+
+    for index, match in enumerate(matches):
+        article_id = match.group(1)
+        title = match.group(2).strip()
+
+        start = match.start()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+
+        article_text = text[start:end].strip()
+
+        articles.append(
+            {
+                "article_id": article_id,
+                "title": title,
+                "text": article_text,
+            }
+        )
+
+    return articles
+
+def chunk_articles(
+    articles: list[dict],
+    source: str,
     chunk_size: int = 1000,
-    chunk_overlap: int = 200
-) -> list[str]:
+    chunk_overlap: int = 200,
+) -> list[dict]:
     """
-    Split text into overlapping chunks.
-
-    Args:
-        text: Cleaned document text.
-        chunk_size: Maximum number of characters per chunk.
-        chunk_overlap: Number of characters shared between chunks.
-
-    Returns:
-        A list of text chunks.
+    Split each article into chunks and attach metadata.
     """
-
-    if not text:
-        return []
 
     if chunk_size <= 0:
         raise ValueError("chunk_size must be greater than 0")
 
-    if chunk_overlap < 0:
-        raise ValueError("chunk_overlap cannot be negative")
-
-    if chunk_overlap >= chunk_size:
+    if chunk_overlap < 0 or chunk_overlap >= chunk_size:
         raise ValueError(
-            "chunk_overlap must be smaller than chunk_size"
+            "chunk_overlap must be between 0 and chunk_size - 1"
         )
 
     chunks = []
 
-    start = 0
-    text_length = len(text)
+    for article in articles:
+        text = article["text"]
 
-    while start < text_length:
-        end = min(start + chunk_size, text_length)
+        start = 0
+        chunk_number = 1
 
-        chunk = text[start:end].strip()
+        while start < len(text):
+            end = min(start + chunk_size, len(text))
 
-        if chunk:
-            chunks.append(chunk)
+            chunk_text = text[start:end].strip()
 
-        if end >= text_length:
-            break
+            if chunk_text:
+                chunks.append(
+                    {
+                        "chunk_id": f"{article['article_id']}-{chunk_number:03d}",
+                        "article_id": article["article_id"],
+                        "title": article["title"],
+                        "source": source,
+                        "text": chunk_text,
+                    }
+                )
 
-        start = end - chunk_overlap
+            if end >= len(text):
+                break
+
+            start = end - chunk_overlap
+            chunk_number += 1
 
     return chunks
