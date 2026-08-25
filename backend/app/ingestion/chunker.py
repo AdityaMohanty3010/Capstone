@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 
 def split_into_articles(text: str) -> list[dict]:
@@ -29,7 +30,11 @@ def split_into_articles(text: str) -> list[dict]:
         title = match.group(2).strip()
 
         start = match.start()
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        end = (
+            matches[index + 1].start()
+            if index + 1 < len(matches)
+            else len(text)
+        )
 
         article_text = text[start:end].strip()
 
@@ -43,6 +48,7 @@ def split_into_articles(text: str) -> list[dict]:
 
     return articles
 
+
 def chunk_articles(
     articles: list[dict],
     source: str,
@@ -51,6 +57,9 @@ def chunk_articles(
 ) -> list[dict]:
     """
     Split each article into chunks and attach metadata.
+
+    The PDF filename is included in chunk_id to ensure IDs are
+    unique even when multiple PDFs contain the same article IDs.
     """
 
     if chunk_size <= 0:
@@ -60,6 +69,10 @@ def chunk_articles(
         raise ValueError(
             "chunk_overlap must be between 0 and chunk_size - 1"
         )
+
+    # Convert PDF filename into a safe ID prefix.
+    # Example: "account_authentication.pdf" -> "account_authentication"
+    source_prefix = Path(source).stem
 
     chunks = []
 
@@ -77,7 +90,13 @@ def chunk_articles(
             if chunk_text:
                 chunks.append(
                     {
-                        "chunk_id": f"{article['article_id']}-{chunk_number:03d}",
+                        # Example:
+                        # account_authentication-KB-001-001
+                        "chunk_id": (
+                            f"{source_prefix}-"
+                            f"{article['article_id']}-"
+                            f"{chunk_number:03d}"
+                        ),
                         "article_id": article["article_id"],
                         "title": article["title"],
                         "source": source,
