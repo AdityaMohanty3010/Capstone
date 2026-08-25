@@ -42,7 +42,9 @@ class PineconeService:
                 region="us-east-1"
             )
         )
-        
+
+        print(f"Index created: {self.index_name}")
+
     def get_index(self):
         """Return the Pinecone index."""
         return self.client.Index(self.index_name)
@@ -65,7 +67,7 @@ class PineconeService:
         index.upsert(vectors=vectors)
 
         print(f"Upserted {len(vectors)} vectors.")
-        
+
     def search(self, query_vector: list[float], top_k: int = 5):
         """
         Search Pinecone using a query embedding.
@@ -81,4 +83,13 @@ class PineconeService:
 
         return results
 
-        print(f"Index created: {self.index_name}")
+    def delete_all_vectors(self):
+        """
+        Delete all vectors from the Pinecone index.
+        """
+
+        index = self.get_index()
+
+        index.delete(delete_all=True)
+
+        print("All vectors deleted from Pinecone.")
